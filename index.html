@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thong Kee · Food Platform Report Converter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f7f6f4;--surface:#fff;--surface2:#f0ede8;--border:#e2ddd6;--border2:#c8c2b8;
+  --accent:#1a6b3c;--accent-light:#e8f5ee;--accent-mid:#2d9b5a;
+  --text:#1a1814;--muted:#8c8680;--muted2:#b5b0a8;
+  --grab:#00b14f;--grab-light:#e6f9ee;--grab-border:#80d8a0;
+  --shop:#ee4d2d;--shop-light:#fef0ed;--shop-border:#f5a898;
+  --panda:#d70f64;--panda-light:#fce8f1;--panda-border:#f0a0c8;
+  --del-bg:#fff8e8;--del-border:#f0d080;--del-text:#7a5800;
+  --pick-bg:#e8f0ff;--pick-border:#a0b8f0;--pick-text:#1a3a8c;
+  --disc-bg:#f0fff4;--disc-border:#80d8a0;--disc-text:#1a5c30;
+  --refund-bg:#fff0f0;--refund-border:#f0a0a0;--refund-text:#8c1a1a;
+  --comp-bg:#f5f0ff;--comp-border:#b0a0f0;--comp-text:#3a1a8c;
+  --danger:#c0392b;--danger-light:#fdf0ee;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;}
+body{display:flex;flex-direction:column;}
+
+/* Header */
+.header{background:var(--text);padding:16px 32px;display:flex;align-items:center;gap:14px;}
+.header-logo{width:34px;height:34px;background:var(--accent-mid);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.header h1{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:#fff;}
+.header p{font-size:12px;color:#666;margin-top:1px;}
+
+main{flex:1;padding:28px 32px;max-width:1300px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:20px;}
+
+/* Platform tabs */
+.platform-bar{display:flex;gap:10px;}
+.platform-btn{
+  display:flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;
+  border:2px solid var(--border2);background:var(--surface);cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--muted);
+  transition:all 0.15s;
+}
+.platform-btn:hover{border-color:var(--border2);color:var(--text);}
+.platform-btn.grab.active{background:var(--grab-light);border-color:var(--grab);color:var(--grab);}
+.platform-btn.shop.active{background:var(--shop-light);border-color:var(--shop);color:var(--shop);}
+.platform-btn.panda.active{background:var(--panda-light);border-color:var(--panda);color:var(--panda);}
+.platform-btn .dot{width:10px;height:10px;border-radius:50%;}
+.platform-btn.grab .dot{background:var(--grab);}
+.platform-btn.shop .dot{background:var(--shop);}
+.platform-btn.panda .dot{background:var(--panda);}
+
+.platform-section{display:none;}
+.platform-section.active{display:flex;flex-direction:column;gap:20px;}
+
+/* Outlet selector (Shopee) */
+.outlet-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.outlet-btn{
+  padding:6px 14px;border-radius:20px;border:1px solid var(--border2);
+  background:var(--surface);font-size:12px;font-weight:500;cursor:pointer;
+  transition:all 0.12s;color:var(--muted);white-space:nowrap;
+}
+.outlet-btn:hover{border-color:var(--shop);color:var(--shop);}
+.outlet-btn.active{background:var(--shop);border-color:var(--shop);color:#fff;}
+.outlet-btn.panda-outlet:hover{border-color:var(--panda);color:var(--panda);}
+.outlet-btn.panda-outlet.active{background:var(--panda);border-color:var(--panda);color:#fff;}
+.outlet-label{font-size:12px;color:var(--muted);font-weight:500;margin-right:4px;}
+
+/* Drop zones */
+.drop-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.dropzone{
+  border:2px dashed var(--border2);border-radius:10px;padding:28px 20px;
+  text-align:center;cursor:pointer;transition:all 0.15s;background:var(--surface);
+  position:relative;
+}
+.dropzone:hover,.dropzone.over{border-color:var(--accent-mid);background:var(--accent-light);}
+.dropzone.shop-drop:hover,.dropzone.shop-drop.over{border-color:var(--shop);background:var(--shop-light);}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.dropzone .dz-icon{font-size:28px;margin-bottom:8px;display:block;}
+.dropzone .dz-title{font-size:14px;font-weight:600;margin-bottom:4px;}
+.dropzone .dz-sub{font-size:12px;color:var(--muted);}
+.dropzone .dz-loaded{font-size:11px;font-family:'DM Mono',monospace;color:var(--accent);margin-top:6px;font-weight:500;}
+.dropzone.loaded{border-style:solid;border-color:var(--accent-mid);}
+.dropzone.shop-drop.loaded{border-color:var(--shop);}
+
+/* Alert */
+.alert{display:none;padding:10px 14px;border-radius:8px;font-size:13px;font-family:'DM Mono',monospace;}
+.alert.success{background:var(--accent-light);border:1px solid #a8d8bc;color:var(--accent);}
+.alert.error{background:var(--danger-light);border:1px solid #f0b8b0;color:var(--danger);}
+
+/* Panel */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.panel-head{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface2);flex-wrap:wrap;}
+.panel-head h2{font-size:12px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;color:var(--muted);}
+.panel-body{padding:18px;}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;}
+.stat-card{background:var(--surface2);border-radius:8px;padding:11px 13px;}
+.stat-card .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:500;margin-bottom:4px;}
+.stat-card .value{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;}
+.stat-card.del{background:var(--del-bg);border:1px solid var(--del-border);}
+.stat-card.del .label,.stat-card.del .value{color:var(--del-text);}
+.stat-card.pick{background:var(--pick-bg);border:1px solid var(--pick-border);}
+.stat-card.pick .label,.stat-card.pick .value{color:var(--pick-text);}
+.stat-card.disc{background:var(--disc-bg);border:1px solid var(--disc-border);}
+.stat-card.disc .label,.stat-card.disc .value{color:var(--disc-text);}
+.stat-card.refund{background:var(--refund-bg);border:1px solid var(--refund-border);}
+.stat-card.refund .label,.stat-card.refund .value{color:var(--refund-text);}
+.stat-card.comp{background:var(--comp-bg);border:1px solid var(--comp-border);}
+.stat-card.comp .label,.stat-card.comp .value{color:var(--comp-text);}
+
+/* Table */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:var(--surface2);}
+thead th{padding:8px 11px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);white-space:nowrap;border-bottom:2px solid var(--border);}
+thead th.right{text-align:right;}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:8px 11px;white-space:nowrap;}
+tbody td.right{text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
+tbody td.mono{font-family:'DM Mono',monospace;font-size:11px;}
+tbody td.desc{font-size:11px;color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;}
+.zero{color:var(--muted2);}
+.neg{color:var(--refund-text);}
+.pos{color:var(--comp-text);}
+
+.badge{display:inline-flex;align-items:center;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600;font-family:'DM Mono',monospace;}
+.badge.del{background:var(--del-bg);color:var(--del-text);border:1px solid var(--del-border);}
+.badge.pick{background:var(--pick-bg);color:var(--pick-text);border:1px solid var(--pick-border);}
+.badge.refund{background:var(--refund-bg);color:var(--refund-text);border:1px solid var(--refund-border);}
+.badge.comp{background:var(--comp-bg);color:var(--comp-text);border:1px solid var(--comp-border);}
+
+/* Tabs */
+.tab-bar{display:flex;border-bottom:2px solid var(--border);}
+.tab-btn{padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.12s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+.empty-state{padding:24px;text-align:center;color:var(--muted);font-size:13px;display:none;}
+
+/* Copy cards */
+.copy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.copy-card{border-radius:9px;padding:15px 18px;display:flex;align-items:center;gap:13px;cursor:pointer;border:2px solid transparent;transition:all 0.15s;}
+.copy-card:active{transform:scale(0.99);}
+.copy-card .cc-icon{font-size:26px;flex-shrink:0;}
+.copy-card .cc-body{flex:1;}
+.copy-card .cc-title{font-size:13px;font-weight:700;}
+.copy-card .cc-hint{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;}
+.copy-card .cc-status{font-size:11px;font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);min-height:15px;margin-top:5px;}
+.copy-card.orders-card{background:var(--del-bg);border-color:var(--del-border);}
+.copy-card.orders-card:hover{border-color:#d09000;box-shadow:0 3px 12px rgba(240,180,0,0.15);}
+.copy-card.orders-card .cc-title{color:var(--del-text);}
+.copy-card.disc-card{background:var(--disc-bg);border-color:var(--disc-border);}
+.copy-card.disc-card:hover{border-color:var(--accent-mid);}
+.copy-card.disc-card .cc-title{color:var(--disc-text);}
+.copy-card.refund-card{background:var(--refund-bg);border-color:var(--refund-border);}
+.copy-card.refund-card:hover{border-color:#c04040;}
+.copy-card.refund-card .cc-title{color:var(--refund-text);}
+.copy-card.comp-card{background:var(--comp-bg);border-color:var(--comp-border);}
+.copy-card.comp-card:hover{border-color:#7060c0;}
+.copy-card.comp-card .cc-title{color:var(--comp-text);}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;border:1px solid var(--border2);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.12s;white-space:nowrap;}
+.btn:hover{background:var(--surface2);border-color:var(--accent-mid);}
+.btn:active{transform:scale(0.98);}
+.btn.sm{padding:4px 10px;font-size:11px;}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;}
+
+footer{padding:12px 32px;text-align:center;font-size:11px;color:var(--muted2);font-family:'DM Mono',monospace;border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">☕</div>
+  <div>
+    <h1>Thong Kee · Food Platform Report Converter</h1>
+    <p>GrabFood &amp; ShopeeFood · Orders · Subsidy · Refund · Compensation</p>
+  </div>
+</div>
+
+<main>
+
+  <!-- Platform selector -->
+  <div class="platform-bar">
+    <button class="platform-btn grab active" onclick="switchPlatform('grab',this)">
+      <div class="dot"></div> GrabFood
+    </button>
+    <button class="platform-btn shop" onclick="switchPlatform('shop',this)">
+      <div class="dot"></div> ShopeeFood
+    </button>
+    <button class="platform-btn panda" onclick="switchPlatform('panda',this)">
+      <div class="dot"></div> FoodPanda
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════ GRABFOOD ═══════════════════════════════ -->
+  <div class="platform-section active" id="section-grab">
+
+    <div id="dropzone-grab" class="dropzone">
+      <input type="file" id="file-grab" accept=".xlsx,.xls,.csv">
+      <span class="dz-icon">⬇️</span>
+      <div class="dz-title">Drop GrabFood transaction export</div>
+      <div class="dz-sub">.xlsx · .xls · .csv</div>
+      <div class="dz-loaded" id="grab-loaded"></div>
+    </div>
+
+    <div id="alert-grab" class="alert"></div>
+    <div id="output-grab" style="display:none;flex-direction:column;gap:16px;">
+
+      <div class="panel">
+        <div class="panel-head"><h2>Summary</h2><button class="btn sm" onclick="resetGrab()">✕ Reset</button></div>
+        <div class="panel-body"><div class="stats-row" id="grab-stats"></div></div>
+      </div>
+
+      <div class="panel">
+        <div style="padding:0 18px;background:var(--surface2);border-bottom:1px solid var(--border);">
+          <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('grab','orders',this)">📦 Orders</button>
+            <button class="tab-btn" onclick="switchTab('grab','discount',this)">🏷️ Discount</button>
+            <button class="tab-btn" onclick="switchTab('grab','refund',this)">🔴 Refund</button>
+            <button class="tab-btn" onclick="switchTab('grab','compensation',this)">🟣 Compensation</button>
+          </div>
+        </div>
+        <div class="tab-pane active" id="grab-tab-orders">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <span style="font-size:12px;color:var(--muted);">Delivery &amp; Self Pick by day · excludes Cancelled</span>
+            <button class="btn sm" onclick="downloadGrabCSV()">↓ CSV</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th class="right">Count</th><th class="right">Amount</th><th class="right">Discount</th></tr></thead><tbody id="grab-orders-tbody"></tbody></table></div>
+        </div>
+        <div class="tab-pane" id="grab-tab-discount">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">Merchant-Funded Discount · summed by day</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th class="right">Discount (RM)</th></tr></thead><tbody id="grab-disc-tbody"></tbody></table></div>
+        </div>
+        <div class="tab-pane" id="grab-tab-refund">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">Deduction - Eater Compensation · row by row</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Order ID</th><th class="right">Amount</th><th>Description</th></tr></thead><tbody id="grab-refund-tbody"></tbody></table></div>
+          <div class="empty-state" id="grab-refund-empty">No refund rows.</div>
+        </div>
+        <div class="tab-pane" id="grab-tab-compensation">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">Compensation - Orders · row by row</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Order ID</th><th class="right">Amount</th><th>Description</th></tr></thead><tbody id="grab-comp-tbody"></tbody></table></div>
+          <div class="empty-state" id="grab-comp-empty">No compensation rows.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>⎘ Copy to Sheet</h2></div>
+        <div class="panel-body"><div class="copy-grid">
+          <div class="copy-card orders-card" onclick="grabCopy('orders')" id="grab-card-orders"><div class="cc-icon">⎘</div><div class="cc-body"><div class="cc-title">Copy Orders (Count + Amount)</div><div class="cc-hint">Interleaved Delivery/Self Pick per day.<br>Paste into first Delivery Order Count cell.</div><div class="cc-status" id="grab-status-orders"></div></div></div>
+          <div class="copy-card disc-card" onclick="grabCopy('discount')" id="grab-card-discount"><div class="cc-icon">🏷️</div><div class="cc-body"><div class="cc-title">Copy Discount (daily total)</div><div class="cc-hint">One per day on Delivery row, blank for Self Pick.<br>Paste into first Discount cell.</div><div class="cc-status" id="grab-status-discount"></div></div></div>
+          <div class="copy-card refund-card" onclick="grabCopy('refund')" id="grab-card-refund"><div class="cc-icon">🔴</div><div class="cc-body"><div class="cc-title">Copy Refund (Amount → Order ID)</div><div class="cc-hint">Date-aware, skips Self Pick rows.<br>Add extra rows first, then paste.</div><div class="cc-status" id="grab-status-refund"></div></div></div>
+          <div class="copy-card comp-card" onclick="grabCopy('compensation')" id="grab-card-compensation"><div class="cc-icon">🟣</div><div class="cc-body"><div class="cc-title">Copy Compensation (Amount → Order ID)</div><div class="cc-hint">Date-aware, skips Self Pick rows.<br>Add extra rows first, then paste.</div><div class="cc-status" id="grab-status-compensation"></div></div></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ SHOPEEFOOD ═══════════════════════════════ -->
+  <div class="platform-section" id="section-shop">
+
+    <div class="drop-row">
+      <div id="dropzone-settlement" class="dropzone shop-drop">
+        <input type="file" id="file-settlement" accept=".xlsx,.xls,.csv">
+        <span class="dz-icon">📋</span>
+        <div class="dz-title">Settlement Report</div>
+        <div class="dz-sub">Transaction / orders file</div>
+        <div class="dz-loaded" id="settlement-loaded"></div>
+      </div>
+      <div id="dropzone-adjustment" class="dropzone shop-drop">
+        <input type="file" id="file-adjustment" accept=".xlsx,.xls,.csv">
+        <span class="dz-icon">📝</span>
+        <div class="dz-title">Adjustment Report</div>
+        <div class="dz-sub">Refund / compensation file</div>
+        <div class="dz-loaded" id="adjustment-loaded"></div>
+      </div>
+    </div>
+
+    <div id="alert-shop" class="alert"></div>
+
+    <!-- Outlet selector -->
+    <div id="outlet-selector" style="display:none;" class="panel">
+      <div class="panel-head"><h2>Select Outlet</h2></div>
+      <div class="panel-body">
+        <div class="outlet-bar" id="outlet-bar"></div>
+      </div>
+    </div>
+
+    <div id="output-shop" style="display:none;flex-direction:column;gap:16px;">
+
+      <div class="panel">
+        <div class="panel-head"><h2 id="shop-outlet-title">Summary</h2><button class="btn sm" onclick="resetShop()">✕ Reset</button></div>
+        <div class="panel-body"><div class="stats-row" id="shop-stats"></div></div>
+      </div>
+
+      <div class="panel">
+        <div style="padding:0 18px;background:var(--surface2);border-bottom:1px solid var(--border);">
+          <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('shop','orders',this)">📦 Orders</button>
+            <button class="tab-btn" onclick="switchTab('shop','subsidy',this)">🏷️ Subsidy</button>
+            <button class="tab-btn" onclick="switchTab('shop','refund',this)">🔴 Refund</button>
+            <button class="tab-btn" onclick="switchTab('shop','compensation',this)">🟣 Compensation</button>
+          </div>
+        </div>
+        <div class="tab-pane active" id="shop-tab-orders">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">Platform Delivery &amp; Self Pickup by day (Order Create Time)</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th class="right">Count</th><th class="right">Amount</th><th class="right">Subsidy</th></tr></thead><tbody id="shop-orders-tbody"></tbody></table></div>
+        </div>
+        <div class="tab-pane" id="shop-tab-subsidy">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">Item Voucher + Shipping Voucher + Flash Sale subsidy · summed by day</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th class="right">Item Voucher</th><th class="right">Shipping Voucher</th><th class="right">Flash Sale</th><th class="right">Total Subsidy</th></tr></thead><tbody id="shop-subsidy-tbody"></tbody></table></div>
+        </div>
+        <div class="tab-pane" id="shop-tab-refund">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">ShopeeFood_Adjustment_Deduct · row by row</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Order ID</th><th class="right">Amount</th><th>Remark</th></tr></thead><tbody id="shop-refund-tbody"></tbody></table></div>
+          <div class="empty-state" id="shop-refund-empty">No refund rows for this outlet.</div>
+        </div>
+        <div class="tab-pane" id="shop-tab-compensation">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">ShopeeFood_Adjustment_Add · row by row</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Order ID</th><th class="right">Amount</th><th>Remark</th></tr></thead><tbody id="shop-comp-tbody"></tbody></table></div>
+          <div class="empty-state" id="shop-comp-empty">No compensation rows for this outlet.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>⎘ Copy to Sheet</h2></div>
+        <div class="panel-body"><div class="copy-grid">
+          <div class="copy-card orders-card" onclick="shopCopy('orders')" id="shop-card-orders"><div class="cc-icon">⎘</div><div class="cc-body"><div class="cc-title">Copy Orders (Count + Amount)</div><div class="cc-hint">Interleaved Delivery/Self Pick per day.<br>Paste into first Delivery Order Count cell.</div><div class="cc-status" id="shop-status-orders"></div></div></div>
+          <div class="copy-card disc-card" onclick="shopCopy('subsidy')" id="shop-card-subsidy"><div class="cc-icon">🏷️</div><div class="cc-body"><div class="cc-title">Copy Subsidy (Item+Shipping+Flash Sale)</div><div class="cc-hint">3 columns per day on Delivery row.<br>Paste into first Item Voucher Subsidy cell.</div><div class="cc-status" id="shop-status-subsidy"></div></div></div>
+          <div class="copy-card refund-card" onclick="shopCopy('refund')" id="shop-card-refund"><div class="cc-icon">🔴</div><div class="cc-body"><div class="cc-title">Copy Refund (Amount → Order ID)</div><div class="cc-hint">Date-aware, skips Self Pick rows.<br>Add extra rows first, then paste.</div><div class="cc-status" id="shop-status-refund"></div></div></div>
+          <div class="copy-card comp-card" onclick="shopCopy('compensation')" id="shop-card-compensation"><div class="cc-icon">🟣</div><div class="cc-body"><div class="cc-title">Copy Compensation (Amount → Order ID)</div><div class="cc-hint">Date-aware, skips Self Pick rows.<br>Add extra rows first, then paste.</div><div class="cc-status" id="shop-status-compensation"></div></div></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ FOODPANDA ═══════════════════════════════ -->
+  <div class="platform-section" id="section-panda">
+
+    <div id="dropzone-panda" class="dropzone" style="border-color:var(--panda-border);">
+      <input type="file" id="file-panda" accept=".xlsx,.xls,.csv">
+      <span class="dz-icon">🐼</span>
+      <div class="dz-title">Drop FoodPanda transaction export</div>
+      <div class="dz-sub">.xlsx · .xls · .csv — all outlets combined</div>
+      <div class="dz-loaded" id="panda-loaded"></div>
+    </div>
+
+    <div id="alert-panda" class="alert"></div>
+
+    <!-- Outlet selector -->
+    <div id="panda-outlet-selector" style="display:none;" class="panel">
+      <div class="panel-head"><h2>Select Outlet</h2></div>
+      <div class="panel-body"><div class="outlet-bar" id="panda-outlet-bar"></div></div>
+    </div>
+
+    <div id="output-panda" style="display:none;flex-direction:column;gap:16px;">
+
+      <div class="panel">
+        <div class="panel-head"><h2 id="panda-outlet-title">Summary</h2><button class="btn sm" onclick="resetPanda()">✕ Reset</button></div>
+        <div class="panel-body"><div class="stats-row" id="panda-stats"></div></div>
+      </div>
+
+      <div class="panel">
+        <div style="padding:0 18px;background:var(--surface2);border-bottom:1px solid var(--border);">
+          <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('panda','orders',this)">📦 Orders</button>
+            <button class="tab-btn" onclick="switchTab('panda','voucher',this)">🏷️ Voucher & Discount</button>
+          </div>
+        </div>
+        <div class="tab-pane active" id="panda-tab-orders">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">FOODPANDA (Delivery) &amp; SELFPICKED by day · excludes Customer Cancelled</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th class="right">Count</th><th class="right">Amount (Products Value)</th></tr></thead><tbody id="panda-orders-tbody"></tbody></table></div>
+        </div>
+        <div class="tab-pane" id="panda-tab-voucher">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:var(--muted);">Voucher Paid By Vendor + Discount Paid By Vendor · summed by day</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th class="right">Voucher Paid By Vendor</th><th class="right">Discount Paid By Vendor</th></tr></thead><tbody id="panda-voucher-tbody"></tbody></table></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>⎘ Copy to Sheet</h2></div>
+        <div class="panel-body"><div class="copy-grid">
+          <div class="copy-card orders-card" onclick="pandaCopy('orders')" id="panda-card-orders"><div class="cc-icon">⎘</div><div class="cc-body"><div class="cc-title">Copy Orders (Count + Amount)</div><div class="cc-hint">Interleaved Delivery/Self Pick per day.<br>Paste into first Delivery Order Count cell.</div><div class="cc-status" id="panda-status-orders"></div></div></div>
+          <div class="copy-card disc-card" onclick="pandaCopy('voucher')" id="panda-card-voucher"><div class="cc-icon">🏷️</div><div class="cc-body"><div class="cc-title">Copy Voucher + Discount (2 cols)</div><div class="cc-hint">Voucher → Discount per day, Delivery row only.<br>Paste into Voucher Paid By Vendor cell.</div><div class="cc-status" id="panda-status-voucher"></div></div></div>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+<footer>runs entirely in your browser · no data uploaded anywhere</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// OUTLET MAP: Shopee store name → outlet code
+// ══════════════════════════════════════════════════════════
+const OUTLET_MAP = {
+  'Taman Connaught':   { code:'CONN',  label:'Connaught',    order:1 },
+  'Puchong Square':    { code:'PUC',   label:'Puchong',      order:2 },
+  'Klang Bukit Raja':  { code:'KLANG', label:'Klang',        order:3 },
+  'Kepong Baru':       { code:'KEP',   label:'Kepong',       order:4 },
+  'Sri Petaling':      { code:'SRI',   label:'Sri Petaling', order:5 },
+  'Ara Damansara':     { code:'ARA',   label:'Ara Damansara',order:6 },
+  'Pandan Indah':      { code:'PI',    label:'Pandan Indah', order:7 },
+  'Sungei Wang':       { code:'SW',    label:'Sungei Wang',  order:8 },
+  'TSLAW Tower':       { code:'TSLAW', label:'TSLAW',        order:9 },
+  'Glenmarie':         { code:'GLEN',  label:'Glenmarie',    order:10 },
+  'Sea Park':          { code:'SEA',   label:'Sea Park',     order:11 },
+  'Setapak':           { code:'SET',   label:'Setapak',      order:12 },
+};
+
+function getOutletKey(storeName) {
+  for (const key of Object.keys(OUTLET_MAP)) {
+    if (storeName.includes(key)) return key;
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════
+// PLATFORM SWITCH
+// ══════════════════════════════════════════════════════════
+function switchPlatform(name, btn) {
+  document.querySelectorAll('.platform-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB SWITCH (works for both platforms)
+// ══════════════════════════════════════════════════════════
+function switchTab(platform, name, btn) {
+  const prefix = platform+'-tab-';
+  document.querySelectorAll('[id^="'+prefix+'"]').forEach(p => p.classList.remove('active'));
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(prefix+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════
+function pad(n){return String(n).padStart(2,'0');}
+function parseDateKey(raw) {
+  const s = (raw||'').toString().trim();
+  if (!s || s==='undefined' || s==='null') return null;
+  // "2026-04-01" or "2026-04-01T..." or "2026-04-01 12:59:04"
+  const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m1) return m1[3]+'/'+m1[2]+'/'+m1[1];
+  // "01 Apr 2026 ..." or "1 Apr 2026"
+  const m2 = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (m2) { const mn={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}; const m=mn[m2[2].toLowerCase().slice(0,3)]; if(m) return pad(+m2[1])+'/'+pad(m)+'/'+m2[3]; }
+  // "01/04/2026" DD/MM/YYYY
+  const m3 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m3) return pad(m3[1])+'/'+pad(m3[2])+'/'+m3[3];
+  // "4/1/26" M/D/YY — FoodPanda format
+  const m4 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (m4) { const yr = +m4[3] < 50 ? '20'+m4[3] : '19'+m4[3]; return pad(+m4[2])+'/'+pad(+m4[1])+'/'+yr; }
+  // "4/1/2026" M/D/YYYY
+  const m5 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m5) return pad(+m5[2])+'/'+pad(+m5[1])+'/'+m5[3];
+  // Excel numeric serial date
+  const serial = parseFloat(s);
+  if (!isNaN(serial) && serial > 40000 && serial < 60000) {
+    const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+    return pad(d.getUTCDate())+'/'+pad(d.getUTCMonth()+1)+'/'+d.getUTCFullYear();
+  }
+  return null;
+}
+function parseDateObj(key){const[d,m,y]=key.split('/').map(Number);return new Date(y,m-1,d);}
+function sortedDates(arr){return arr.sort((a,b)=>parseDateObj(a.date)-parseDateObj(b.date));}
+
+function extractOrderId(remark) {
+  // Extract the long numeric order ID from the remark
+  const m = (remark||'').match(/\b(\d{16,})\b/);
+  return m ? m[1] : remark;
+}
+
+function readXLSX(file, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = new Uint8Array(e.target.result);
+    const wb = XLSX.read(data, {type:'array', cellDates:false, raw:false});
+
+    // Pick the best sheet
+    let sheetName = wb.SheetNames[0];
+    for (const name of wb.SheetNames) {
+      const ws = wb.Sheets[name];
+      const firstRow = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''})[0] || [];
+      const flat = Array.isArray(firstRow) ? firstRow.join(' ').toLowerCase() : (firstRow+'').toLowerCase();
+      if (flat.includes('order code') || flat.includes('outlet name') || flat.includes('food order id') ||
+          flat.includes('transaction type') || flat.includes('updated on') || flat.includes('short order id')) {
+        sheetName = name;
+        break;
+      }
+    }
+
+    const ws = wb.Sheets[sheetName];
+
+    // Use sheet_to_json with object mode first to get proper column mapping
+    const objRows = XLSX.utils.sheet_to_json(ws, {raw:false, dateNF:'YYYY-MM-DD', defval:''});
+    if (objRows.length > 0) {
+      // Convert object rows back to array format using first object's keys as header
+      const headers = Object.keys(objRows[0]);
+      const arrayRows = [headers, ...objRows.map(obj => headers.map(h => obj[h]))];
+      console.log('Using object mode. Headers:', headers.slice(0,10));
+      callback(arrayRows);
+    } else {
+      // Fallback to raw array mode
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'YYYY-MM-DD', defval:''});
+      console.log('Using array mode. Row 0:', rows[0]);
+      callback(rows);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showAlert(platform, type, msg) {
+  const el = document.getElementById('alert-'+platform);
+  el.className='alert '+type; el.textContent=msg; el.style.display='block';
+}
+function hideAlert(platform){document.getElementById('alert-'+platform).style.display='none';}
+
+function doCopy(text, statusId, cardId) {
+  const statusEl = document.getElementById(statusId);
+  const cardEl   = document.getElementById(cardId);
+  if (!text.trim()){statusEl.textContent='No data.';setTimeout(()=>statusEl.textContent='',2000);return;}
+  navigator.clipboard.writeText(text).then(()=>{
+    statusEl.textContent='✓ Copied! Paste into sheet.';
+    cardEl.style.borderColor='var(--accent-mid)';
+    setTimeout(()=>{statusEl.textContent='';cardEl.style.borderColor='';},3000);
+  }).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    statusEl.textContent='✓ Copied!';setTimeout(()=>statusEl.textContent='',3000);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// GRABFOOD
+// ══════════════════════════════════════════════════════════
+let grabData={summary:[],refund:[],comp:[]};
+
+document.getElementById('file-grab').addEventListener('change', e=>{if(e.target.files[0])processGrab(e.target.files[0]);});
+const dzGrab=document.getElementById('dropzone-grab');
+dzGrab.addEventListener('dragover',e=>{e.preventDefault();dzGrab.classList.add('over');});
+dzGrab.addEventListener('dragleave',()=>dzGrab.classList.remove('over'));
+dzGrab.addEventListener('drop',e=>{e.preventDefault();dzGrab.classList.remove('over');if(e.dataTransfer.files[0])processGrab(e.dataTransfer.files[0]);});
+
+function processGrab(file) {
+  hideAlert('grab');
+  readXLSX(file, rows => {
+    try {
+      let headerRow=-1, colMap={};
+      for(let i=0;i<Math.min(rows.length,10);i++){
+        const row=rows[i].map(c=>(c+'').trim().toLowerCase());
+        if(row.some(c=>c.includes('updated on')||c==='status')){
+          headerRow=i;
+          row.forEach((c,idx)=>{
+            if(c.includes('updated on'))       colMap.updatedOn=idx;
+            if(c==='status')                   colMap.status=idx;
+            if(c.includes('short order id'))   colMap.shortId=idx;
+            if(c==='amount')                   colMap.amount=idx;
+            if(c==='category')                 colMap.category=idx;
+            if(c==='subcategory')              colMap.subcat=idx;
+            if(c==='discount (merchant-funded)')colMap.discount=idx;
+            if(c==='description')              colMap.description=idx;
+          });
+          break;
+        }
+      }
+      if(headerRow===-1){showAlert('grab','error','Cannot find header row.');return;}
+
+      const dayMap={};grabData.refund=[];grabData.comp=[];
+      let total=0,cancelled=0;
+      for(let i=headerRow+1;i<rows.length;i++){
+        const row=rows[i];
+        const status=(row[colMap.status]||'').trim();
+        const cat=colMap.category!==undefined?(row[colMap.category]||'').trim():'';
+        const subcat=colMap.subcat!==undefined?(row[colMap.subcat]||'').trim():'';
+        if(status.toLowerCase()==='cancelled'){cancelled++;continue;}
+        const dk=parseDateKey((row[colMap.updatedOn]||'').toString());
+        if(!dk)continue;
+        const shortId=(row[colMap.shortId]||'').toString().trim();
+        const amt=parseFloat((row[colMap.amount]||'').toString().replace(/,/g,''))||0;
+        const desc=colMap.description!==undefined?(row[colMap.description]||'').toString().trim():'';
+        if(subcat==='Deduction - Eater Compensation'){grabData.refund.push({date:dk,shortId,amount:amt,desc});continue;}
+        if(subcat==='Compensation - Orders'){grabData.comp.push({date:dk,shortId,amount:amt,desc});continue;}
+        if(cat&&cat.toLowerCase()!=='payment')continue;
+        const disc=parseFloat((colMap.discount!==undefined?row[colMap.discount]:'0'||'0').toString().replace(/,/g,''))||0;
+        const isPickup=shortId.toUpperCase().endsWith('T');
+        if(!dayMap[dk])dayMap[dk]={delQty:0,delAmt:0,pickQty:0,pickAmt:0,discAmt:0};
+        if(isPickup){dayMap[dk].pickQty++;dayMap[dk].pickAmt+=amt;}
+        else{dayMap[dk].delQty++;dayMap[dk].delAmt+=amt;}
+        dayMap[dk].discAmt+=disc;total++;
+      }
+      grabData.summary=sortedDates(Object.entries(dayMap).map(([date,v])=>({date,...v})));
+      grabData.refund.sort((a,b)=>parseDateObj(a.date)-parseDateObj(b.date));
+      grabData.comp.sort((a,b)=>parseDateObj(a.date)-parseDateObj(b.date));
+      renderGrab();
+      document.getElementById('grab-loaded').textContent='✓ '+file.name;
+      document.getElementById('dropzone-grab').classList.add('loaded');
+      showAlert('grab','success',`✓ ${total} orders · ${cancelled} cancelled removed · ${grabData.refund.length} refunds · ${grabData.comp.length} compensations`);
+    } catch(err){showAlert('grab','error','Error: '+err.message);console.error(err);}
+  });
+}
+
+function renderGrab() {
+  const s=grabData.summary;
+  const totDel=s.reduce((a,r)=>a+r.delQty,0),totDelAmt=s.reduce((a,r)=>a+r.delAmt,0);
+  const totPick=s.reduce((a,r)=>a+r.pickQty,0),totPickAmt=s.reduce((a,r)=>a+r.pickAmt,0);
+  const totDisc=s.reduce((a,r)=>a+r.discAmt,0);
+  const totRef=grabData.refund.reduce((a,r)=>a+r.amount,0);
+  const totComp=grabData.comp.reduce((a,r)=>a+r.amount,0);
+  document.getElementById('grab-stats').innerHTML=`
+    <div class="stat-card"><div class="label">Total</div><div class="value">${totDel+totPick}</div></div>
+    <div class="stat-card del"><div class="label">🟡 Delivery</div><div class="value">${totDel}</div></div>
+    <div class="stat-card del"><div class="label">🟡 Del Amt</div><div class="value">RM ${totDelAmt.toFixed(2)}</div></div>
+    <div class="stat-card pick"><div class="label">🔵 Self Pick</div><div class="value">${totPick}</div></div>
+    <div class="stat-card pick"><div class="label">🔵 Pick Amt</div><div class="value">RM ${totPickAmt.toFixed(2)}</div></div>
+    <div class="stat-card disc"><div class="label">🏷️ Discount</div><div class="value">RM ${totDisc.toFixed(2)}</div></div>
+    <div class="stat-card refund"><div class="label">🔴 Refund(${grabData.refund.length})</div><div class="value">RM ${totRef.toFixed(2)}</div></div>
+    <div class="stat-card comp"><div class="label">🟣 Comp(${grabData.comp.length})</div><div class="value">RM ${totComp.toFixed(2)}</div></div>
+  `;
+  // Orders
+  const ob=document.getElementById('grab-orders-tbody');ob.innerHTML='';
+  s.forEach(r=>{
+    const t1=ob.insertRow();t1.innerHTML=`<td class="mono" rowspan="2" style="vertical-align:middle;border-right:1px solid var(--border);">${r.date}</td><td><span class="badge del">DELIVERY</span></td><td class="right ${r.delQty===0?'zero':''}">${r.delQty}</td><td class="right ${r.delAmt===0?'zero':''}">${r.delAmt===0?'-':r.delAmt.toFixed(2)}</td><td class="right ${r.discAmt===0?'zero':'neg'}">${r.discAmt===0?'-':r.discAmt.toFixed(2)}</td>`;
+    const t2=ob.insertRow();t2.innerHTML=`<td><span class="badge pick">SELF PICK</span></td><td class="right ${r.pickQty===0?'zero':''}">${r.pickQty===0?'-':r.pickQty}</td><td class="right ${r.pickAmt===0?'zero':''}">${r.pickAmt===0?'-':r.pickAmt.toFixed(2)}</td><td class="right zero">-</td>`;
+  });
+  // Discount
+  const db=document.getElementById('grab-disc-tbody');db.innerHTML='';
+  s.forEach(r=>{const t=db.insertRow();t.innerHTML=`<td class="mono">${r.date}</td><td class="right neg">${r.discAmt===0?'-':r.discAmt.toFixed(2)}</td>`;});
+  // Refund
+  const rb=document.getElementById('grab-refund-tbody');rb.innerHTML='';
+  document.getElementById('grab-refund-empty').style.display=grabData.refund.length?'none':'block';
+  grabData.refund.forEach(r=>{const t=rb.insertRow();t.innerHTML=`<td class="mono">${r.date}</td><td><span class="badge refund">${r.shortId}</span></td><td class="right neg">${r.amount.toFixed(2)}</td><td class="desc">${r.desc}</td>`;});
+  // Comp
+  const cb=document.getElementById('grab-comp-tbody');cb.innerHTML='';
+  document.getElementById('grab-comp-empty').style.display=grabData.comp.length?'none':'block';
+  grabData.comp.forEach(r=>{const t=cb.insertRow();t.innerHTML=`<td class="mono">${r.date}</td><td><span class="badge comp">${r.shortId}</span></td><td class="right pos">${r.amount.toFixed(2)}</td><td class="desc">${r.desc}</td>`;});
+  document.getElementById('output-grab').style.display='flex';
+}
+
+function grabCopy(type) {
+  const s=grabData.summary;
+  let text='';
+  if(type==='orders'){
+    const lines=[];s.forEach(r=>{lines.push(r.delQty+'\t'+r.delAmt.toFixed(2));lines.push((r.pickQty===0?'':r.pickQty)+'\t'+(r.pickAmt===0?'':r.pickAmt.toFixed(2)));});text=lines.join('\n');
+  } else if(type==='discount'){
+    const lines=[];s.forEach(r=>{lines.push(r.discAmt===0?'':r.discAmt.toFixed(2));lines.push('');});while(lines.length&&lines[lines.length-1]==='')lines.pop();text=lines.join('\n');
+  } else if(type==='refund'||type==='compensation'){
+    const rows=type==='refund'?grabData.refund:grabData.comp;
+    const byDate={};rows.forEach(r=>{if(!byDate[r.date])byDate[r.date]=[];byDate[r.date].push(r);});
+    const lines=[];s.forEach(r=>{const entries=byDate[r.date]||[];if(entries.length===0){lines.push('');}else{entries.forEach(e=>lines.push(e.amount.toFixed(2)+'\t'+e.shortId));}lines.push('');});
+    while(lines.length&&lines[lines.length-1]==='')lines.pop();text=lines.join('\n');
+  }
+  doCopy(text,'grab-status-'+type,'grab-card-'+type);
+}
+
+function downloadGrabCSV(){
+  if(!grabData.summary.length)return;
+  const lines=['Date,Type,Order Count,Amount,Discount'];
+  grabData.summary.forEach(r=>{lines.push([r.date,'DELIVERY',r.delQty,r.delAmt.toFixed(2),r.discAmt.toFixed(2)].join(','));lines.push([r.date,'SELF PICK',r.pickQty,r.pickAmt.toFixed(2),''].join(','));});
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='grabfood_summary.csv';a.click();
+}
+
+function resetGrab(){
+  grabData={summary:[],refund:[],comp:[]};
+  document.getElementById('file-grab').value='';
+  document.getElementById('output-grab').style.display='none';
+  document.getElementById('grab-loaded').textContent='';
+  document.getElementById('dropzone-grab').classList.remove('loaded');
+  hideAlert('grab');
+  ['grab-stats','grab-orders-tbody','grab-disc-tbody','grab-refund-tbody','grab-comp-tbody'].forEach(id=>document.getElementById(id).innerHTML='');
+}
+
+// ══════════════════════════════════════════════════════════
+// SHOPEEFOOD
+// ══════════════════════════════════════════════════════════
+let shopRaw={settlement:[],adjustment:[]};
+let shopByOutlet={};  // outletKey -> {summary, refund, comp}
+let currentOutlet=null;
+
+// File listeners
+document.getElementById('file-settlement').addEventListener('change',e=>{if(e.target.files[0])loadSettlement(e.target.files[0]);});
+document.getElementById('file-adjustment').addEventListener('change',e=>{if(e.target.files[0])loadAdjustment(e.target.files[0]);});
+
+['settlement','adjustment'].forEach(id=>{
+  const dz=document.getElementById('dropzone-'+id);
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f){if(id==='settlement')loadSettlement(f);else loadAdjustment(f);}});
+});
+
+function loadSettlement(file){
+  readXLSX(file, rows=>{
+    shopRaw.settlement=rows;
+    document.getElementById('settlement-loaded').textContent='✓ '+file.name;
+    document.getElementById('dropzone-settlement').classList.add('loaded');
+    tryProcessShop();
+  });
+}
+function loadAdjustment(file){
+  readXLSX(file, rows=>{
+    shopRaw.adjustment=rows;
+    document.getElementById('adjustment-loaded').textContent='✓ '+file.name;
+    document.getElementById('dropzone-adjustment').classList.add('loaded');
+    tryProcessShop();
+  });
+}
+
+function tryProcessShop(){
+  // Process as soon as settlement is loaded (adjustment optional)
+  if(!shopRaw.settlement.length)return;
+  hideAlert('shop');
+  try {
+    const rows=shopRaw.settlement;
+    // Find header row
+    let hdr=-1,cm={};
+    for(let i=0;i<Math.min(rows.length,5);i++){
+      const r=rows[i].map(c=>(c+'').trim().toLowerCase());
+      if(r.includes('store name')||r.includes('food order id')){
+        hdr=i;
+        r.forEach((c,idx)=>{
+          if(c==='store name')                              cm.storeName=idx;
+          if(c==='delivery mode')                          cm.delivMode=idx;
+          if(c==='food order id')                          cm.orderId=idx;
+          if(c==='order create time')                      cm.orderDate=idx;
+          if(c==='order amount')                           cm.amount=idx;
+          if(c==='merchant item voucher subsidy')          cm.itemSub=idx;
+          if(c==='merchant shipping voucher subsidy')      cm.shipSub=idx;
+          if(c==='merchant flash sale subsidy')            cm.flashSub=idx;
+        });
+        break;
+      }
+    }
+    if(hdr===-1){showAlert('shop','error','Cannot find header in Settlement file.');return;}
+
+    // Build per-outlet data
+    shopByOutlet={};
+    for(let i=hdr+1;i<rows.length;i++){
+      const row=rows[i];
+      if(!row[cm.storeName])continue;
+      const storeName=(row[cm.storeName]||'').toString();
+      const outletKey=getOutletKey(storeName);
+      if(!outletKey)continue;
+      if(!shopByOutlet[outletKey])shopByOutlet[outletKey]={summary:{},refund:[],comp:[]};
+
+      const dk=parseDateKey((row[cm.orderDate]||'').toString());
+      if(!dk)continue;
+      const delivMode=(row[cm.delivMode]||'').toString().trim();
+      const isPickup=delivMode==='Self Pickup';
+      const rawId=(row[cm.orderId]||'').toString().replace(/#/g,'').trim();
+      const amt=parseFloat((row[cm.amount]||'').toString().replace(/,/g,''))||0;
+      const itemSub=parseFloat((row[cm.itemSub]||'0').toString().replace(/,/g,''))||0;
+      const shipSub=parseFloat((row[cm.shipSub]||'0').toString().replace(/,/g,''))||0;
+      const flashSub=parseFloat((row[cm.flashSub]||'0').toString().replace(/,/g,''))||0;
+
+      const d=shopByOutlet[outletKey].summary;
+      if(!d[dk])d[dk]={delQty:0,delAmt:0,pickQty:0,pickAmt:0,itemSub:0,shipSub:0,flashSub:0};
+      if(isPickup){d[dk].pickQty++;d[dk].pickAmt+=amt;}
+      else{d[dk].delQty++;d[dk].delAmt+=amt;}
+      d[dk].itemSub+=itemSub;d[dk].shipSub+=shipSub;d[dk].flashSub+=flashSub;
+    }
+
+    // Process adjustment (if loaded)
+    if(shopRaw.adjustment.length){
+      const arows=shopRaw.adjustment;
+      let ahdr=-1,acm={};
+      for(let i=0;i<Math.min(arows.length,5);i++){
+        const r=arows[i].map(c=>(c+'').trim().toLowerCase());
+        if(r.includes('transaction type')){
+          ahdr=i;
+          r.forEach((c,idx)=>{
+            if(c==='transaction type')  acm.txnType=idx;
+            if(c==='store name')        acm.storeName=idx;
+            if(c==='remark')            acm.remark=idx;
+            if(c==='create date')       acm.date=idx;
+            if(c==='amount')            acm.amount=idx;
+          });
+          break;
+        }
+      }
+      if(ahdr!==-1){
+        for(let i=ahdr+1;i<arows.length;i++){
+          const row=arows[i];
+          if(!row[acm.storeName])continue;
+          const storeName=(row[acm.storeName]||'').toString();
+          const outletKey=getOutletKey(storeName);
+          if(!outletKey||!shopByOutlet[outletKey])continue;
+          const txnType=(row[acm.txnType]||'').toString().trim();
+          const remark=(row[acm.remark]||'').toString().trim();
+          const dk=parseDateKey((row[acm.date]||'').toString());
+          if(!dk)continue;
+          const amt=parseFloat((row[acm.amount]||'').toString().replace(/,/g,''))||0;
+          const orderId=extractOrderId(remark);
+          if(txnType==='ShopeeFood_Adjustment_Deduct'){
+            shopByOutlet[outletKey].refund.push({date:dk,orderId,amount:amt,remark});
+          } else if(txnType==='ShopeeFood_Adjustment_Add'){
+            shopByOutlet[outletKey].comp.push({date:dk,orderId,amount:amt,remark});
+          }
+        }
+      }
+    }
+
+    // Sort
+    Object.values(shopByOutlet).forEach(o=>{
+      o.summaryArr=sortedDates(Object.entries(o.summary).map(([date,v])=>({date,...v})));
+      o.refund.sort((a,b)=>parseDateObj(a.date)-parseDateObj(b.date));
+      o.comp.sort((a,b)=>parseDateObj(a.date)-parseDateObj(b.date));
+    });
+
+    buildOutletSelector();
+    const firstKey=Object.keys(shopByOutlet)[0];
+    if(firstKey)selectOutlet(firstKey);
+
+    const settlCount=Object.values(shopByOutlet).reduce((a,o)=>a+o.summaryArr.reduce((b,r)=>b+r.delQty+r.pickQty,0),0);
+    const adjCount=Object.values(shopByOutlet).reduce((a,o)=>a+o.refund.length+o.comp.length,0);
+    showAlert('shop','success',`✓ ${settlCount} orders across ${Object.keys(shopByOutlet).length} outlets · ${adjCount} adjustment rows`);
+
+  } catch(err){showAlert('shop','error','Error: '+err.message);console.error(err);}
+}
+
+function buildOutletSelector(){
+  const bar=document.getElementById('outlet-bar');
+  bar.innerHTML='';
+  // Sort outlets by defined order
+  const sorted = Object.entries(shopByOutlet).sort((a,b)=>{
+    const oa = OUTLET_MAP[a[0]]?.order ?? 99;
+    const ob = OUTLET_MAP[b[0]]?.order ?? 99;
+    return oa - ob;
+  });
+  sorted.forEach(([key])=>{
+    const info=OUTLET_MAP[key];
+    const btn=document.createElement('button');
+    btn.className='outlet-btn';
+    btn.id='outlet-btn-'+key;
+    btn.textContent=info?info.label:key;
+    btn.onclick=()=>selectOutlet(key);
+    bar.appendChild(btn);
+  });
+  document.getElementById('outlet-selector').style.display='block';
+}
+
+function selectOutlet(key){
+  currentOutlet=key;
+  document.querySelectorAll('.outlet-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('outlet-btn-'+key);
+  if(btn)btn.classList.add('active');
+  const info=OUTLET_MAP[key];
+  document.getElementById('shop-outlet-title').textContent=(info?info.label:key)+' · Summary';
+  renderShop(key);
+}
+
+function renderShop(key){
+  const o=shopByOutlet[key];
+  const s=o.summaryArr;
+  const totDel=s.reduce((a,r)=>a+r.delQty,0),totDelAmt=s.reduce((a,r)=>a+r.delAmt,0);
+  const totPick=s.reduce((a,r)=>a+r.pickQty,0),totPickAmt=s.reduce((a,r)=>a+r.pickAmt,0);
+  const totItem=s.reduce((a,r)=>a+r.itemSub,0),totShip=s.reduce((a,r)=>a+r.shipSub,0),totFlash=s.reduce((a,r)=>a+r.flashSub,0);
+  const totRef=o.refund.reduce((a,r)=>a+r.amount,0);
+  const totComp=o.comp.reduce((a,r)=>a+r.amount,0);
+
+  document.getElementById('shop-stats').innerHTML=`
+    <div class="stat-card"><div class="label">Total</div><div class="value">${totDel+totPick}</div></div>
+    <div class="stat-card del"><div class="label">🟡 Delivery</div><div class="value">${totDel}</div></div>
+    <div class="stat-card del"><div class="label">🟡 Del Amt</div><div class="value">RM ${totDelAmt.toFixed(2)}</div></div>
+    <div class="stat-card pick"><div class="label">🔵 Self Pick</div><div class="value">${totPick}</div></div>
+    <div class="stat-card pick"><div class="label">🔵 Pick Amt</div><div class="value">RM ${totPickAmt.toFixed(2)}</div></div>
+    <div class="stat-card disc"><div class="label">🏷️ Total Subsidy</div><div class="value">RM ${(totItem+totShip+totFlash).toFixed(2)}</div></div>
+    <div class="stat-card refund"><div class="label">🔴 Refund(${o.refund.length})</div><div class="value">RM ${totRef.toFixed(2)}</div></div>
+    <div class="stat-card comp"><div class="label">🟣 Comp(${o.comp.length})</div><div class="value">RM ${totComp.toFixed(2)}</div></div>
+  `;
+  // Orders
+  const ob=document.getElementById('shop-orders-tbody');ob.innerHTML='';
+  s.forEach(r=>{
+    const totSub=r.itemSub+r.shipSub+r.flashSub;
+    const t1=ob.insertRow();t1.innerHTML=`<td class="mono" rowspan="2" style="vertical-align:middle;border-right:1px solid var(--border);">${r.date}</td><td><span class="badge del">DELIVERY</span></td><td class="right ${r.delQty===0?'zero':''}">${r.delQty}</td><td class="right ${r.delAmt===0?'zero':''}">${r.delAmt===0?'-':r.delAmt.toFixed(2)}</td><td class="right ${totSub===0?'zero':'neg'}">${totSub===0?'-':totSub.toFixed(2)}</td>`;
+    const t2=ob.insertRow();t2.innerHTML=`<td><span class="badge pick">SELF PICK</span></td><td class="right ${r.pickQty===0?'zero':''}">${r.pickQty===0?'-':r.pickQty}</td><td class="right ${r.pickAmt===0?'zero':''}">${r.pickAmt===0?'-':r.pickAmt.toFixed(2)}</td><td class="right zero">-</td>`;
+  });
+  // Subsidy breakdown
+  const sb=document.getElementById('shop-subsidy-tbody');sb.innerHTML='';
+  s.forEach(r=>{const t=sb.insertRow();t.innerHTML=`<td class="mono">${r.date}</td><td class="right neg">${r.itemSub===0?'-':r.itemSub.toFixed(2)}</td><td class="right neg">${r.shipSub===0?'-':r.shipSub.toFixed(2)}</td><td class="right neg">${r.flashSub===0?'-':r.flashSub.toFixed(2)}</td><td class="right neg" style="font-weight:600;">${(r.itemSub+r.shipSub+r.flashSub)===0?'-':(r.itemSub+r.shipSub+r.flashSub).toFixed(2)}</td>`;});
+  // Refund
+  const rb=document.getElementById('shop-refund-tbody');rb.innerHTML='';
+  document.getElementById('shop-refund-empty').style.display=o.refund.length?'none':'block';
+  o.refund.forEach(r=>{const t=rb.insertRow();t.innerHTML=`<td class="mono">${r.date}</td><td class="mono" style="font-size:11px;">${r.orderId}</td><td class="right neg">${r.amount.toFixed(2)}</td><td class="desc">${r.remark}</td>`;});
+  // Comp
+  const cb=document.getElementById('shop-comp-tbody');cb.innerHTML='';
+  document.getElementById('shop-comp-empty').style.display=o.comp.length?'none':'block';
+  o.comp.forEach(r=>{const t=cb.insertRow();t.innerHTML=`<td class="mono">${r.date}</td><td class="mono" style="font-size:11px;">${r.orderId}</td><td class="right pos">${r.amount.toFixed(2)}</td><td class="desc">${r.remark}</td>`;});
+
+  document.getElementById('output-shop').style.display='flex';
+}
+
+function shopCopy(type){
+  if(!currentOutlet)return;
+  const o=shopByOutlet[currentOutlet];
+  const s=o.summaryArr;
+  let text='';
+  if(type==='orders'){
+    const lines=[];s.forEach(r=>{lines.push(r.delQty+'\t'+r.delAmt.toFixed(2));lines.push((r.pickQty===0?'':r.pickQty)+'\t'+(r.pickAmt===0?'':r.pickAmt.toFixed(2)));});text=lines.join('\n');
+  } else if(type==='subsidy'){
+    // 3 columns: item voucher, shipping voucher, flash sale — on delivery row, blank for self pick
+    const lines=[];
+    s.forEach(r=>{
+      lines.push(
+        (r.itemSub===0?'':r.itemSub.toFixed(2))+'\t'+
+        (r.shipSub===0?'':r.shipSub.toFixed(2))+'\t'+
+        (r.flashSub===0?'':r.flashSub.toFixed(2))
+      );
+      lines.push('\t\t'); // self pick row — 3 blank columns
+    });
+    while(lines.length&&lines[lines.length-1].replace(/\t/g,'')==='')lines.pop();
+    text=lines.join('\n');
+  } else if(type==='refund'||type==='compensation'){
+    const rows=type==='refund'?o.refund:o.comp;
+    const byDate={};rows.forEach(r=>{if(!byDate[r.date])byDate[r.date]=[];byDate[r.date].push(r);});
+    const lines=[];s.forEach(r=>{
+      const entries=byDate[r.date]||[];
+      if(entries.length===0){lines.push('');}
+      else{entries.forEach(e=>lines.push(e.amount.toFixed(2)+'\t'+e.orderId));}
+      lines.push(''); // self pick skip
+    });
+    while(lines.length&&lines[lines.length-1]==='')lines.pop();
+    text=lines.join('\n');
+  }
+  doCopy(text,'shop-status-'+type,'shop-card-'+(type==='subsidy'?'subsidy':type));
+}
+
+function resetShop(){
+  shopRaw={settlement:[],adjustment:[]};shopByOutlet={};currentOutlet=null;
+  ['file-settlement','file-adjustment'].forEach(id=>document.getElementById(id).value='');
+  ['settlement-loaded','adjustment-loaded'].forEach(id=>document.getElementById(id).textContent='');
+  ['dropzone-settlement','dropzone-adjustment'].forEach(id=>document.getElementById(id).classList.remove('loaded'));
+  document.getElementById('outlet-selector').style.display='none';
+  document.getElementById('output-shop').style.display='none';
+  document.getElementById('outlet-bar').innerHTML='';
+  hideAlert('shop');
+  ['shop-stats','shop-orders-tbody','shop-subsidy-tbody','shop-refund-tbody','shop-comp-tbody'].forEach(id=>document.getElementById(id).innerHTML='');
+}
+
+// ══════════════════════════════════════════════════════════
+// FOODPANDA
+// ══════════════════════════════════════════════════════════
+const PANDA_OUTLET_MAP = {
+  'Taman Connaught':  { label:'Connaught',    order:1  },
+  'Puchong':          { label:'Puchong',      order:2  },
+  'Klang':            { label:'Klang',        order:3  },
+  'Kepong':           { label:'Kepong',       order:4  },
+  'Sri Petaling':     { label:'Sri Petaling', order:5  },
+  'Ara Damansara':    { label:'Ara Damansara',order:6  },
+  'Pandan Indah':     { label:'Pandan Indah', order:7  },
+  'Sungei Wang':      { label:'Sungei Wang',  order:8  },
+  'TSLAW':            { label:'TSLAW',        order:9  },
+  'Glenmarie':        { label:'Glenmarie',    order:10 },
+  'Sea Park':         { label:'Sea Park',     order:11 },
+  'Setapak':          { label:'Setapak',      order:12 },
+};
+
+function getPandaOutletKey(outletName) {
+  for (const key of Object.keys(PANDA_OUTLET_MAP)) {
+    if (outletName.includes(key)) return key;
+  }
+  return outletName;
+}
+
+let pandaByOutlet={}, currentPandaOutlet=null;
+
+const dzPanda=document.getElementById('dropzone-panda');
+dzPanda.addEventListener('dragover',e=>{e.preventDefault();dzPanda.classList.add('over');});
+dzPanda.addEventListener('dragleave',()=>dzPanda.classList.remove('over'));
+dzPanda.addEventListener('drop',e=>{e.preventDefault();dzPanda.classList.remove('over');if(e.dataTransfer.files[0])processPanda(e.dataTransfer.files[0]);});
+document.getElementById('file-panda').addEventListener('change',e=>{if(e.target.files[0])processPanda(e.target.files[0]);});
+
+function processPanda(file){
+  hideAlert('panda');
+  readXLSX(file, rows=>{
+    try {
+      // DEBUG: log first 2 rows
+      console.log('FoodPanda rows[0] (header):', rows[0]);
+      console.log('FoodPanda rows[1] (data):', rows[1]);
+      console.log('Total rows:', rows.length);
+
+      let hdr=-1,cm={};
+      for(let i=0;i<Math.min(rows.length,5);i++){
+        const r=rows[i].map(c=>(c+'').trim().toLowerCase());
+        console.log(`Row ${i} lowercased first 10:`, r.slice(0,10));
+        if(r.includes('outlet name')||r.includes('order code')){
+          hdr=i;
+          r.forEach((c,idx)=>{
+            if(c==='outlet name')                        cm.outlet=idx;
+            if(c==='order date')                         cm.date=idx;
+            if(c==='customer cancelled')                 cm.cancelled=idx;
+            if(c==='delivery mode')                      cm.delivMode=idx;
+            if(c==='products value paid by customer')    cm.amount=idx;
+            if(c==='voucher paid by vendor')             cm.voucher=idx;
+            if(c==='discount paid by vendor')            cm.discount=idx;
+          });
+          break;
+        }
+      }
+      console.log('Header row found at:', hdr);
+      console.log('Column map:', cm);
+
+      if(hdr===-1){showAlert('panda','error','Cannot find header row.');return;}
+
+      // Check first data row
+      const testRow = rows[hdr+1];
+      console.log('First data row:', testRow);
+      console.log('outlet val:', testRow?.[cm.outlet]);
+      console.log('date val:', testRow?.[cm.date]);
+      console.log('cancelled val:', testRow?.[cm.cancelled]);
+      console.log('delivMode val:', testRow?.[cm.delivMode]);
+      console.log('amount val:', testRow?.[cm.amount]);
+
+      pandaByOutlet={};
+      let total=0,skipped=0;
+
+      for(let i=hdr+1;i<rows.length;i++){
+        const row=rows[i];
+        if(!row[cm.outlet])continue;
+        if((row[cm.cancelled]||'').toString().trim().toUpperCase()==='Y'){skipped++;continue;}
+
+        const outletKey=getPandaOutletKey((row[cm.outlet]||'').toString().trim());
+        if(!pandaByOutlet[outletKey])pandaByOutlet[outletKey]={summaryMap:{}};
+
+        const dk=parseDateKey((row[cm.date]||'').toString());
+        if(!dk)continue;
+
+        const isPickup=(row[cm.delivMode]||'').toString().trim().toUpperCase()==='SELFPICKED';
+        const amt     =parseFloat((row[cm.amount]  ||'0').toString().replace(/,/g,''))||0;
+        const voucher =parseFloat((row[cm.voucher] ||'0').toString().replace(/,/g,''))||0;
+        const discount=parseFloat((row[cm.discount]||'0').toString().replace(/,/g,''))||0;
+
+        const d=pandaByOutlet[outletKey].summaryMap;
+        if(!d[dk])d[dk]={delQty:0,delAmt:0,pickQty:0,pickAmt:0,voucher:0,discount:0};
+        if(isPickup){d[dk].pickQty++;d[dk].pickAmt+=amt;}
+        else        {d[dk].delQty++; d[dk].delAmt +=amt;}
+        d[dk].voucher +=voucher;
+        d[dk].discount+=discount;
+        total++;
+      }
+
+      Object.values(pandaByOutlet).forEach(o=>{
+        o.summaryArr=sortedDates(Object.entries(o.summaryMap).map(([date,v])=>({date,...v})));
+      });
+
+      buildPandaOutletSelector();
+      const firstKey=Object.keys(pandaByOutlet).sort((a,b)=>(PANDA_OUTLET_MAP[a]?.order??99)-(PANDA_OUTLET_MAP[b]?.order??99))[0];
+      if(firstKey)selectPandaOutlet(firstKey);
+
+      document.getElementById('panda-loaded').textContent='✓ '+file.name;
+      dzPanda.classList.add('loaded');
+      showAlert('panda','success',`✓ ${total} orders · ${skipped} cancelled removed · ${Object.keys(pandaByOutlet).length} outlet(s)`);
+    } catch(err){showAlert('panda','error','Error: '+err.message);console.error(err);}
+  });
+}
+
+function buildPandaOutletSelector(){
+  const bar=document.getElementById('panda-outlet-bar');bar.innerHTML='';
+  Object.keys(pandaByOutlet).sort((a,b)=>(PANDA_OUTLET_MAP[a]?.order??99)-(PANDA_OUTLET_MAP[b]?.order??99)).forEach(key=>{
+    const info=PANDA_OUTLET_MAP[key];
+    const btn=document.createElement('button');
+    btn.className='outlet-btn panda-outlet';
+    btn.id='panda-outlet-btn-'+key.replace(/\s/g,'_');
+    btn.textContent=info?info.label:key;
+    btn.onclick=()=>selectPandaOutlet(key);
+    bar.appendChild(btn);
+  });
+  document.getElementById('panda-outlet-selector').style.display='block';
+}
+
+function selectPandaOutlet(key){
+  currentPandaOutlet=key;
+  document.querySelectorAll('#panda-outlet-bar .outlet-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('panda-outlet-btn-'+key.replace(/\s/g,'_'));
+  if(btn)btn.classList.add('active');
+  const info=PANDA_OUTLET_MAP[key];
+  document.getElementById('panda-outlet-title').textContent=(info?info.label:key)+' · Summary';
+  renderPanda(key);
+}
+
+function renderPanda(key){
+  const o=pandaByOutlet[key];const s=o.summaryArr;
+  const totDel=s.reduce((a,r)=>a+r.delQty,0),totDelAmt=s.reduce((a,r)=>a+r.delAmt,0);
+  const totPick=s.reduce((a,r)=>a+r.pickQty,0),totPickAmt=s.reduce((a,r)=>a+r.pickAmt,0);
+  const totVoucher=s.reduce((a,r)=>a+r.voucher,0),totDisc=s.reduce((a,r)=>a+r.discount,0);
+
+  document.getElementById('panda-stats').innerHTML=`
+    <div class="stat-card"><div class="label">Total</div><div class="value">${totDel+totPick}</div></div>
+    <div class="stat-card del"><div class="label">🟡 Delivery</div><div class="value">${totDel}</div></div>
+    <div class="stat-card del"><div class="label">🟡 Del Amt</div><div class="value">RM ${totDelAmt.toFixed(2)}</div></div>
+    <div class="stat-card pick"><div class="label">🔵 Self Pick</div><div class="value">${totPick}</div></div>
+    <div class="stat-card pick"><div class="label">🔵 Pick Amt</div><div class="value">RM ${totPickAmt.toFixed(2)}</div></div>
+    <div class="stat-card disc"><div class="label">🏷️ Voucher</div><div class="value">RM ${totVoucher.toFixed(2)}</div></div>
+    <div class="stat-card refund"><div class="label">💸 Discount</div><div class="value">RM ${totDisc.toFixed(2)}</div></div>
+  `;
+
+  const ob=document.getElementById('panda-orders-tbody');ob.innerHTML='';
+  s.forEach(r=>{
+    const t1=ob.insertRow();t1.innerHTML=`<td class="mono" rowspan="2" style="vertical-align:middle;border-right:1px solid var(--border);">${r.date}</td><td><span class="badge del">DELIVERY</span></td><td class="right ${r.delQty===0?'zero':''}">${r.delQty}</td><td class="right ${r.delAmt===0?'zero':''}">${r.delAmt===0?'-':r.delAmt.toFixed(2)}</td>`;
+    const t2=ob.insertRow();t2.innerHTML=`<td><span class="badge pick">SELF PICK</span></td><td class="right ${r.pickQty===0?'zero':''}">${r.pickQty===0?'-':r.pickQty}</td><td class="right ${r.pickAmt===0?'zero':''}">${r.pickAmt===0?'-':r.pickAmt.toFixed(2)}</td>`;
+  });
+
+  const vb=document.getElementById('panda-voucher-tbody');vb.innerHTML='';
+  s.forEach(r=>{
+    const t=vb.insertRow();t.innerHTML=`<td class="mono">${r.date}</td><td class="right neg">${r.voucher===0?'-':r.voucher.toFixed(2)}</td><td class="right neg">${r.discount===0?'-':r.discount.toFixed(2)}</td>`;
+  });
+
+  document.getElementById('output-panda').style.display='flex';
+}
+
+function pandaCopy(type){
+  if(!currentPandaOutlet)return;
+  const s=pandaByOutlet[currentPandaOutlet].summaryArr;
+  let text='';
+  if(type==='orders'){
+    const lines=[];
+    s.forEach(r=>{lines.push(r.delQty+'\t'+r.delAmt.toFixed(2));lines.push((r.pickQty===0?'':r.pickQty)+'\t'+(r.pickAmt===0?'':r.pickAmt.toFixed(2)));});
+    text=lines.join('\n');
+  } else if(type==='voucher'){
+    const lines=[];
+    s.forEach(r=>{
+      lines.push((r.voucher===0?'':r.voucher.toFixed(2))+'\t'+(r.discount===0?'':r.discount.toFixed(2)));
+      lines.push('\t');
+    });
+    while(lines.length&&lines[lines.length-1].replace(/\t/g,'')==='')lines.pop();
+    text=lines.join('\n');
+  }
+  doCopy(text,'panda-status-'+type,'panda-card-'+type);
+}
+
+function resetPanda(){
+  pandaByOutlet={};currentPandaOutlet=null;
+  document.getElementById('file-panda').value='';
+  document.getElementById('panda-loaded').textContent='';
+  dzPanda.classList.remove('loaded');
+  document.getElementById('panda-outlet-selector').style.display='none';
+  document.getElementById('output-panda').style.display='none';
+  document.getElementById('panda-outlet-bar').innerHTML='';
+  hideAlert('panda');
+  ['panda-stats','panda-orders-tbody','panda-voucher-tbody'].forEach(id=>document.getElementById(id).innerHTML='');
+  ['panda-status-orders','panda-status-voucher'].forEach(id=>document.getElementById(id).textContent='');
+}
+</script>
+</body>
+</html>
